@@ -1,1 +1,1 @@
-web: python news_reader.py
+web: python detect.py
