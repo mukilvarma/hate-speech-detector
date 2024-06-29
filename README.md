@@ -1,4 +1,4 @@
-# Hate Speech Detector
+# Detecting and Alerting Hate Speech in Twitter Using AI
 
 This project is a Hate Speech Detector that uses OpenAI's language model to analyze posts fetched from Twitter. Detected hate speech messages are then sent as alerts via WhatsApp.
 
