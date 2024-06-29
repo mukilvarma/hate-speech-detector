@@ -37,10 +37,11 @@ To run this project locally, you need:
    TWILIO_PHONE_NUMBER=<your-twilio-phone-number>
    WHATSAPP_NUMBERS=<comma-separated-list-of-whatsapp-numbers>
 
-  4. **Run the application:**
+4. **Run the application:**
 
    ```bash
    python detect.py
+
    Open your web browser and navigate to `http://localhost:5000`.
 
 ## Using the Hate Speech Detector
