@@ -1,128 +1,112 @@
+from flask import Flask, render_template, jsonify
+from twilio.rest import Client
 import tweepy
-import facebook
 import openai
-from datetime import datetime, timedelta
-import schedule
-import time
-import requests
+import datetime
+import os
+
+app = Flask(__name__, template_folder='templates')
 
 # Twitter API credentials
-consumer_key = 'YOUR_CONSUMER_KEY'
-consumer_secret = 'YOUR_CONSUMER_SECRET'
-access_token = 'YOUR_ACCESS_TOKEN'
-access_token_secret = 'YOUR_ACCESS_TOKEN_SECRET'
-
-# Facebook access token
-fb_access_token = 'YOUR_FB_ACCESS_TOKEN'
+twitter_api_key = 'K8kVGLXC6d7k5Bt3NjpYjgslz'
+twitter_api_secret_key = 'fdutQREjZ3KmYqOZnuqxpWgSboCB7dS8QOYVtiSOyFrOU2mm6d'
+twitter_access_token = '1636302414621081600-nDHF1XlocFSahEuDFGcuAoVf4yBVR9'
+twitter_access_token_secret = 'EwM3VSsDNgwAWfeRlKQRLz5seIn7QxNzXfkbdkCyEbjPO'
+twitter_bearer_token = 'AAAAAAAAAAAAAAAAAAAAAJZHugEAAAAAB21rrrHdZvWQVLSAf%2FNZBeM2rCA%3DoHLHcjRlEzmB3wcAhgtuijk5Kk4smwNJ1kL2vVgbEvMBG4Otnd'
 
 # OpenAI API key
-openai.api_key = 'YOUR_OPENAI_API_KEY'
+openai.api_key = 'sk-news-service-NLlhQ6ULVybEEZ7Nj8EuT3BlbkFJZsvRJci1foO7h0GSy3jU'
 
-# WhatsApp API credentials (example using Twilio WhatsApp API)
-TWILIO_ACCOUNT_SID = 'YOUR_TWILIO_ACCOUNT_SID'
-TWILIO_AUTH_TOKEN = 'YOUR_TWILIO_AUTH_TOKEN'
-TWILIO_WHATSAPP_NUMBER = 'YOUR_TWILIO_WHATSAPP_NUMBER'
-WHATSAPP_NUMBERS = ['whatsapp:+15551234567', 'whatsapp:+15552345678']  # List of recipient WhatsApp numbers
+# Twilio WhatsApp API credentials
+twilio_account_sid = 'AC752abd12c5fba74faadfa64ca3f77280'
+twilio_auth_token = '23896645104b71a950531e787ddb2e6d'
+twilio_phone_number = '+15626625358'
+whatsapp_numbers = ['whatsapp:+916381603325','whatsapp:+919790138555']  # List of recipient WhatsApp numbers
 
-# Set up tweepy authentication
-auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
-auth.set_access_token(access_token, access_token_secret)
-twitter_api = tweepy.API(auth)
+# Initialize Twilio client
+twilio_client = Client(twilio_account_sid, twilio_auth_token)
 
-# Set up Facebook Graph API
-fb_graph = facebook.GraphAPI(fb_access_token)
+# Initialize Tweepy client
+auth = tweepy.OAuthHandler(twitter_api_key, twitter_api_secret_key)
+auth.set_access_token(twitter_access_token, twitter_access_token_secret)
+twitter_api = tweepy.API(auth, wait_on_rate_limit=True)
 
-# List of keywords (initially empty)
-keywords = []
+client = openai.OpenAI(
+    # defaults to os.environ.get("OPENAI_API_KEY")
+    api_key=openai.api_key
+)
 
-def detect_hate_speech(text):
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant that identifies hate speech."},
-            {"role": "user", "content": f"Does the following text contain hate speech? Answer 'Yes' or 'No'.\n\n{text}"}
-        ]
-    )
-    return response.choices[0].message['content'].strip()
+def fetch_twitter_posts():
+    # Simulated static data including hate speeches
+    tweets = [
+        "I hate Mondays, they are the worst!",
+        "Can't stand people who spread hate.",
+        "Such hatred in the world makes me sad.",
+        "Why can't we all just get along?",
+        "I strongly dislike when people judge others unfairly.",
+        "I think all members of a certain group are inferior and should be treated differently.",
+        "We should eliminate people who don't belong to our community.",
+        "The world would be better off without certain types of people."
+    ]
+    return tweets
 
-def search_social_media(keyword, tweet_count=10, fb_page_id=None, fb_limit=10):
-    thirty_days_ago = datetime.now() - timedelta(days=30)
-    
-    # Search Twitter
-    tweets = twitter_api.search(q=keyword, count=tweet_count, tweet_mode='extended', since=thirty_days_ago.strftime('%Y-%m-%d'))
-    tweet_links = []
-    for tweet in tweets:
-        text = tweet.full_text
-        if detect_hate_speech(text) == 'Yes':
-            tweet_links.append(f"https://twitter.com/{tweet.user.screen_name}/status/{tweet.id}")
-    
-    # Search Facebook
-    fb_links = []
-    if fb_page_id:
-        posts = fb_graph.get_connections(id=fb_page_id, connection_name='posts', limit=fb_limit)
-        for post in posts['data']:
-            if 'message' in post:
-                post_date = datetime.strptime(post['created_time'], '%Y-%m-%dT%H:%M:%S%z')
-                if post_date >= thirty_days_ago:
-                    text = post['message']
-                    if detect_hate_speech(text) == 'Yes':
-                        fb_links.append(f"https://www.facebook.com/{fb_page_id}/posts/{post['id']}")
+##def fetch_twitter_posts(keyword):
+##    posts = []
+##    since_date = (datetime.datetime.now() - datetime.timedelta(days=30)).strftime('%Y-%m-%d')
+##    for tweet in tweepy.Cursor(twitter_api.search_tweets, q=keyword, lang="en", since=since_date).items(100):
+##        posts.append(tweet.text)
+##    return posts
 
-    # Prepare and send WhatsApp messages
-    message = f"Hate Speech Detected for keyword '{keyword}':\n"
-    if tweet_links:
-        message += "\nTwitter:\n" + "\n".join(tweet_links)
-    if fb_links:
-        message += "\nFacebook:\n" + "\n".join(fb_links)
+def analyze_posts(posts):
+    hatred_posts = []
+    for post in posts:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",  # or "gpt-4" if you have access to GPT-4
+            messages=[
+                {"role": "system", "content": "You are a content moderator."},
+                {"role": "user", "content": f"Is the following post hate speech? {post}"}
+            ],
+            max_tokens=10
+        )
 
-    for number in WHATSAPP_NUMBERS:
-        send_whatsapp_message(number, message)
+        # Check if response indicates hate speech
+        if 'yes' in response.choices[0].message.content.lower():
+            hatred_posts.append(post)
+    print("hatred_posts")
+    print(hatred_posts)
+    return hatred_posts
 
-def send_whatsapp_message(number, message):
-    url = f"https://api.twilio.com/2010-04-01/Accounts/{TWILIO_ACCOUNT_SID}/Messages.json"
-    data = {
-        'From': TWILIO_WHATSAPP_NUMBER,
-        'Body': message,
-        'To': number
-    }
-    auth = (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-    response = requests.post(url, data=data, auth=auth)
-    print(f"Message sent to {number}: {response.status_code}")
+def send_whatsapp_alerts(messages):
+    whatsapp_logs = []
+    for message in messages:
+        for number in whatsapp_numbers:
+            whatsapp_logs.append(f"Printing WhatsApp message to {number}: {message}")
+            ##try:
+            ##    twilio_client.messages.create(
+            ##        body=message,
+            ##        from_='whatsapp:' + twilio_phone_number,  # Ensure this is in WhatsApp format
+            ##        to=number,
+            ##    )
+            ##    print(f"Sent WhatsApp message to {number}: {message}")
+            ##except Exception as e:
+            ##    print(f"Error sending WhatsApp message to {number}: {e}")
 
-def schedule_daily_search():
-    for keyword in keywords:
-        schedule.every().day.at("06:00").do(search_social_media, keyword=keyword)
 
-def manual_search(keyword):
-    search_social_media(keyword)
-
-# Example usage of manual search
-# manual_search('example_keyword')
-
-# Example usage of scheduling daily search
-# keywords.append('example_keyword')
-# schedule_daily_search()
-
-# Example Flask application for keyword management and manual search
-from flask import Flask, request, render_template
-
-app = Flask(__name__)
+@app.route('/fetch-hatred-posts', methods=['GET'])
+def fetch_hatred_posts():
+    twitter_posts = fetch_twitter_posts()
+    all_posts = twitter_posts
+    hatred_posts = analyze_posts(all_posts)
+    ##whatsapp_logs2 = send_whatsapp_alerts(hatred_posts)
+    return jsonify(hatred_posts)
 
 @app.route('/')
 def index():
-    return render_template('index.html', keywords=keywords)
-
-@app.route('/add_keyword', methods=['POST'])
-def add_keyword():
-    keyword = request.form['keyword']
-    keywords.append(keyword)
-    schedule_daily_search()
-    return render_template('index.html', keywords=keywords)
-
-@app.route('/search_now/<keyword>', methods=['GET'])
-def search_now(keyword):
-    manual_search(keyword)
-    return 'Search initiated. Check WhatsApp for results.'
+    template_path = os.path.join(app.template_folder, 'index.html')
+    print(f"Template path: {template_path}")
+    return render_template('index.html')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
+
