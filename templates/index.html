@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Media Hate Speech Detector</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        h1, h2 {
+            color: #333;
+            text-align: center;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="submit"] {
+            padding: 8px;
+            margin-bottom: 10px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        input[type="submit"] {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Social Media Hate Speech Detector</h1>
+    
+    <div style="text-align: center;">
+        <h2>Manage Keywords</h2>
+        <form action="/add_keyword" method="post">
+            <label for="keyword">Keyword:</label>
+            <input type="text" id="keyword" name="keyword" required>
+            <br>
+            <input type="submit" value="Add Keyword">
+        </form>
+    </div>
+
+    <div style="text-align: center;">
+        <h2>Schedule Daily Search</h2>
+        {% if keywords %}
+            <p>Keywords scheduled for daily search:</p>
+            <ul>
+                {% for keyword in keywords %}
+                    <li>{{ keyword }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No keywords scheduled for daily search.</p>
+        {% endif %}
+    </div>
+
+    <div style="text-align: center;">
+        <h2>Manual Search</h2>
+        <form action="/search_now/<keyword>" method="get">
+            <label for="search_keyword">Enter Keyword:</label>
+            <input type="text" id="search_keyword" name="search_keyword" required>
+            <br>
+            <input type="submit" value="Search Now">
+        </form>
+    </div>
+</body>
+</html>
