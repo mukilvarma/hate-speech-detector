@@ -41,10 +41,7 @@ To run this project locally, you need:
 
    ```bash
    python detect.py
-
-## Accessing the Hate Speech Detector
-
-- Open your web browser and navigate to `http://localhost:5000`.
+   Open your web browser and navigate to `http://localhost:5000`.
 
 ## Using the Hate Speech Detector
 
